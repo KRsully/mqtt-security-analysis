@@ -8,6 +8,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 )
 
@@ -42,8 +44,7 @@ func listNetworkedMqttListeners() {
 
 }
 
-//Given the
-func resolveIPToName(targetIP net.IP) string {
+/* func resolveIPToName(targetIP net.IP) string {
 	devices, err := pcap.FindAllDevs()
 	if err != nil {
 		log.Panic(err)
@@ -58,7 +59,7 @@ func resolveIPToName(targetIP net.IP) string {
 	}
 
 	return ""
-}
+} */
 
 //Create an inactive pcap handle given the user-supplied parameters or the defaults.
 //	deviceName is the name of the interface to create the handle on
@@ -68,7 +69,6 @@ func createInactiveHandle(deviceName string, flags *pcapFlags) *pcap.InactiveHan
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer inactive.CleanUp()
 
 	if err = inactive.SetPromisc(*flags.promiscuity); err != nil {
 		log.Fatal(err)
@@ -90,8 +90,8 @@ func parseFlags() *pcapFlags {
 	flags := pcapFlags{
 		port:        flag.Int("p", mqttPort, "port to capture MQTT packets on"),
 		promiscuity: flag.Bool("pro", false, "promiscuous mode on"),
-		snaplen:     flag.Int("sl", 512, "maximum bytes per packet capture"), //Is MQTT packet max 512 bytes?
-		timeout:     flag.Duration("t", pcap.BlockForever, "time to wait for additional packets after packet capture before returning"),
+		snaplen:     flag.Int("sl", 65535, "maximum bytes per packet capture"), //Is MQTT packet max 512 bytes?
+		timeout:     flag.Duration("t", pcap.BlockForever, "time to wait for additional packets after packet capture before returning (min. nanoseconds)"),
 	}
 
 	flag.Parse()
@@ -99,6 +99,33 @@ func parseFlags() *pcapFlags {
 	flags.tail = flag.Args()
 
 	return &flags
+}
+
+//Parse the given interface string to determine if pcap can find a valid interface
+//	Receives a string which may be the IP address or the name of the network interface
+//	Returns a string with the name of one of the machine's interfaces
+func parseInterface(deviceIdentifier string) string {
+
+	devices, err := pcap.FindAllDevs()
+	if err != nil {
+		log.Panic(err)
+	}
+
+	for _, device := range devices {
+		if device.Name == deviceIdentifier {
+			return device.Name
+		}
+		for _, address := range device.Addresses {
+			targetIP := net.ParseIP(deviceIdentifier)
+			if address.IP.Equal(targetIP) {
+				return device.Name
+			}
+		}
+	}
+
+	log.Fatal("Cannot resolve interface name")
+
+	return ""
 }
 
 //Driver for the packet capturing
@@ -109,13 +136,26 @@ func captureMQTTPackets() {
 		log.Fatal("No interface name or IP address supplied.")
 	}
 
-	deviceName := flags.tail[0]
-	targetIP := net.ParseIP(deviceName)
-	if targetIP != nil {
-		deviceName = resolveIPToName(targetIP)
-	}
+	deviceName := parseInterface(flags.tail[0])
+
 	inactive := createInactiveHandle(deviceName, flags)
-	log.Printf("Inactive Handle %v Port %d", inactive, *flags.port) //temp
+
+	pcapHandle, err := inactive.Activate()
+	if err != nil {
+		log.Panic(err)
+	}
+
+	inactive.CleanUp()
+
+	defer pcapHandle.Close()
+
+	//pcapHandle.SetBPFFilter("tcp and port " + strconv.Itoa(*flags.port))
+	pcapHandle.SetBPFFilter("tcp and port 1883 or port 8883")
+
+	packetSource := gopacket.NewPacketSource(pcapHandle, layers.LayerTypeEthernet)
+	for packet := range packetSource.Packets() {
+		fmt.Println(packet)
+	}
 }
 
 func main() {
