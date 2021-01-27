@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
+	"github.com/google/gopacket/pcapgo"
 )
 
 const mqttPort = 1883
@@ -152,8 +152,19 @@ func captureMQTTPackets() {
 	//pcapHandle.SetBPFFilter("tcp and port " + strconv.Itoa(*flags.port))
 	pcapHandle.SetBPFFilter("tcp and port 1883 or port 8883")
 
-	packetSource := gopacket.NewPacketSource(pcapHandle, layers.LayerTypeEthernet)
+	packetSource := gopacket.NewPacketSource(pcapHandle, pcapHandle.LinkType())
+
+	file, err := os.Create("capture.pcap")
+	if err != nil {
+		log.Panic(err)
+	}
+	defer file.Close()
+
+	writer := pcapgo.NewWriter(file)
+	writer.WriteFileHeader(uint32(*flags.snaplen), pcapHandle.LinkType())
+
 	for packet := range packetSource.Packets() {
+		writer.WritePacket(packet.Metadata().CaptureInfo, packet.Data())
 		fmt.Println(packet)
 	}
 }
