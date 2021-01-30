@@ -1,5 +1,8 @@
 # mqtt-security-analysis
-
+# Dependencies
+* `github.com/google/gopacket`
+# Installation
+After cloning this repository, run `go get` from within the directory
 # Running from Raspberry Pi
 To list the local network interfaces: `sudo -E go run main.go `
 
