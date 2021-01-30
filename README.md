@@ -6,7 +6,7 @@
 # Operation
 From within the repository:
 * `go run main.go`: Display the network interfaces on the system
-* `go run main.go <interface-name-or-IP>`: Begin capturing packets on the designated interface. If the interface IP is provided, `main.go` will attempt to resolve it to the iterface name.
+* `go run main.go <interface-name-or-IP>`: Begin capturing packets on the designated interface. If the interface IP is provided, `main.go` will attempt to resolve it to the interface name.
 
 ## Running from Raspberry Pi
 To list the local network interfaces: `sudo -E go run main.go `
