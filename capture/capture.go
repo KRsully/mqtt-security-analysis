@@ -1,7 +1,9 @@
-package main
+/*
+ *Package of MQTT packet-capturing utilities.
+ */
+package capture
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -16,16 +18,8 @@ import (
 const mqttPort = 1883
 const mqttSecPort = 8883
 
-type pcapFlags struct {
-	port        *int
-	promiscuity *bool
-	snaplen     *int
-	timeout     *time.Duration
-	tail        []string
-}
-
-//Use pcap to print the name, descriptor, and IP addresses of the machine's network interfaces to the console.
-func listAvailableInterfaces() {
+//ListAvailableInterfaces uses pcap to print the name, descriptor, and IP addresses of the machine's network interfaces to the console.
+func ListAvailableInterfaces() {
 	devices, err := pcap.FindAllDevs()
 	if err != nil {
 		log.Panic(err)
@@ -39,67 +33,45 @@ func listAvailableInterfaces() {
 	}
 }
 
-//use nmap to determine devices on the network that have port 1883 (mqtt) and/or port 8883 (mqtt-ssl) open.
-func listNetworkedMqttListeners() {
-
-}
-
-/* func resolveIPToName(targetIP net.IP) string {
-	devices, err := pcap.FindAllDevs()
-	if err != nil {
-		log.Panic(err)
-	}
-
-	for _, device := range devices {
-		for _, address := range device.Addresses {
-			if address.IP.Equal(targetIP) {
-				return device.Name
-			}
-		}
-	}
-
-	return ""
-} */
-
 //Create an inactive pcap handle given the user-supplied parameters or the defaults.
 //	deviceName is the name of the interface to create the handle on
 //	Returns a pointer to the InactiveHandle object
-func createInactiveHandle(deviceName string, flags *pcapFlags) *pcap.InactiveHandle {
+func createInactiveHandle(promiscuity bool, snaplen int, timeout time.Duration, deviceName string) *pcap.InactiveHandle {
 	inactive, err := pcap.NewInactiveHandle(deviceName)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err = inactive.SetPromisc(*flags.promiscuity); err != nil {
+	if err = inactive.SetPromisc(promiscuity); err != nil {
 		log.Fatal(err)
-	} else if err = inactive.SetSnapLen(*flags.snaplen); err != nil {
+	} else if err = inactive.SetSnapLen(snaplen); err != nil {
 		log.Fatal(err)
-	} else if err = inactive.SetTimeout(*flags.timeout); err != nil {
+	} else if err = inactive.SetTimeout(timeout); err != nil {
 		log.Fatal(err)
 	}
 
 	log.Printf("Created inactive pcap handle to capture traffic on device : %s.\n%30s %t\n%30s %d\n%30s %v\n",
-		deviceName, "Promiscuous:", *flags.promiscuity, "Snapshot Length:", *flags.snaplen, "Timeout:", *flags.timeout)
+		deviceName, "Promiscuous:", promiscuity, "Snapshot Length:", snaplen, "Timeout:", timeout)
 
 	return inactive
 }
 
 //Parse the flags provided through the command line
 //	Returns a pointer to a struct with the values of the flags
-func parseFlags() *pcapFlags {
-	flags := pcapFlags{
-		port:        flag.Int("p", mqttPort, "port to capture MQTT packets on"),
-		promiscuity: flag.Bool("pro", false, "promiscuous mode on"),
-		snaplen:     flag.Int("sl", 65535, "maximum bytes per packet capture"), //Is MQTT packet max 512 bytes?
-		timeout:     flag.Duration("t", pcap.BlockForever, "time to wait for additional packets after packet capture before returning (min. nanoseconds)"),
-	}
+// func parseFlags() *pcapFlags {
+// 	flags := pcapFlags{
+// 		port:        flag.Int("p", mqttPort, "port to capture MQTT packets on"),
+// 		promiscuity: flag.Bool("pro", false, "promiscuous mode on"),
+// 		snaplen:     flag.Int("sl", 65535, "maximum bytes per packet capture"), //Is MQTT packet max 512 bytes?
+// 		timeout:     flag.Duration("t", pcap.BlockForever, "time to wait for additional packets after packet capture before returning (min. nanoseconds)"),
+// 	}
 
-	flag.Parse()
+// 	flag.Parse()
 
-	flags.tail = flag.Args()
+// 	flags.tail = flag.Args()
 
-	return &flags
-}
+// 	return &flags
+// }
 
 //Parse the given interface string to determine if pcap can find a valid interface
 //	Receives a string which may be the IP address or the name of the network interface
@@ -128,17 +100,12 @@ func parseInterface(deviceIdentifier string) string {
 	return ""
 }
 
-//Driver for the packet capturing
-func captureMQTTPackets() {
-	flags := parseFlags()
+//MQTTPackets uses the pcap and gopacket libraries to capture MQTT packets on the user-specified network interface
+func MQTTPackets(port int, promiscuity bool, snaplen int, timeout time.Duration, device []string) {
 
-	if len(flags.tail) < 1 {
-		log.Fatal("No interface name or IP address supplied.")
-	}
+	deviceName := parseInterface(device[0])
 
-	deviceName := parseInterface(flags.tail[0])
-
-	inactive := createInactiveHandle(deviceName, flags)
+	inactive := createInactiveHandle(promiscuity, snaplen, timeout, deviceName)
 
 	pcapHandle, err := inactive.Activate()
 	if err != nil {
@@ -149,7 +116,8 @@ func captureMQTTPackets() {
 
 	defer pcapHandle.Close()
 
-	//pcapHandle.SetBPFFilter("tcp and port " + strconv.Itoa(*flags.port))
+	//TODO: Allow for user specification of ports to watch
+	//pcapHandle.SetBPFFilter("tcp and port " + strconv.Itoa(port))
 	pcapHandle.SetBPFFilter("tcp and port 1883 or port 8883")
 
 	packetSource := gopacket.NewPacketSource(pcapHandle, pcapHandle.LinkType())
@@ -161,18 +129,10 @@ func captureMQTTPackets() {
 	defer file.Close()
 
 	writer := pcapgo.NewWriter(file)
-	writer.WriteFileHeader(uint32(*flags.snaplen), pcapHandle.LinkType())
+	writer.WriteFileHeader(uint32(snaplen), pcapHandle.LinkType())
 
 	for packet := range packetSource.Packets() {
 		writer.WritePacket(packet.Metadata().CaptureInfo, packet.Data())
 		fmt.Println(packet)
-	}
-}
-
-func main() {
-	if len(os.Args) < 2 {
-		listAvailableInterfaces()
-	} else {
-		captureMQTTPackets()
 	}
 }
