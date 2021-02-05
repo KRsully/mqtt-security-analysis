@@ -1,3 +1,4 @@
+github.com/KRsully/mqtt-security-analysis v0.0.0-20210202230909-1d39d4f73384 h1:F3mZwzOkow/C9F94jc3SqbettihVpw0fDOJhrQKpuQA=
 github.com/eclipse/paho.mqtt.golang v1.3.1 h1:6F5FYb1hxVSZS+p0ji5xBQamc5ltOolTYRy5R15uVmI=
 github.com/eclipse/paho.mqtt.golang v1.3.1/go.mod h1:eTzb4gxwwyWpqBUHGQZ4ABAV7+Jgm1PklsYT/eo8Hcc=
 github.com/google/gopacket v1.1.19 h1:ves8RnFZPGiFnTS0uPQStjwru6uO6h+nlr9j6fL7kF8=
