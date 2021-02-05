@@ -12,9 +12,20 @@ import (
 	paho "github.com/eclipse/paho.mqtt.golang"
 )
 
-var f paho.MessageHandler = func(client paho.Client, msg paho.Message) {
+var msgHandler paho.MessageHandler = func(client paho.Client, msg paho.Message) {
 	fmt.Printf("TOPIC: %s\n", msg.Topic())
 	fmt.Printf("MSG: %s\n", msg.Payload())
+}
+
+func makePaho3(keepAliveTime time.Duration, pingTimeout time.Duration, brokerAddress string, port string) paho.Client {
+	paho.DEBUG = log.New(os.Stdout, "", 0)
+	paho.ERROR = log.New(os.Stdout, "", 0)
+	options := paho.NewClientOptions().AddBroker(brokerAddress + ":" + port).SetClientID("paho3")
+	options.SetKeepAlive(keepAliveTime)
+	options.SetDefaultPublishHandler(msgHandler)
+	options.SetPingTimeout(pingTimeout)
+
+	return paho.NewClient(options)
 }
 
 func main() {
@@ -22,7 +33,7 @@ func main() {
 	paho.ERROR = log.New(os.Stdout, "", 0)
 	opts := paho.NewClientOptions().AddBroker("tcp://iot.eclipse.org:1883").SetClientID("gotrivial")
 	opts.SetKeepAlive(2 * time.Second)
-	opts.SetDefaultPublishHandler(f)
+	opts.SetDefaultPublishHandler(msgHandler)
 	opts.SetPingTimeout(1 * time.Second)
 
 	c := paho.NewClient(opts)

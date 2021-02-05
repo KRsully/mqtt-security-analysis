@@ -1,5 +1,5 @@
 /*
- *Package of MQTT packet-capturing utilities.
+*Package capture contains utilities for MQTT packet-capturing.
  */
 package capture
 
@@ -10,6 +10,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/KRsully/mqtt-security-analysis/mqttdecode"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/pcap"
 	"github.com/google/gopacket/pcapgo"
@@ -17,6 +18,71 @@ import (
 
 const mqttPort = 1883
 const mqttSecPort = 8883
+
+// type controlPacketType int
+
+// const (
+// 	CONNECT = controlPacketType(iota + 1)
+// 	CONNACK
+// 	PUBLISH
+// 	PUBACK
+// 	PUBREC
+// 	PUBREL
+// 	PUBCOMP
+// 	SUBSCRIBE
+// 	SUBACK
+// 	UNSUBSCRIBE
+// 	UNSUBACK
+// 	PINGREQ
+// 	PINGRESP
+// 	DISCONNECT
+// )
+
+// var MQTT3LayerType = gopacket.RegisterLayerType(
+// 	3883,
+// 	gopacket.LayerTypeMetadata{Name: "MQTT3.1.1", Decoder: gopacket.DecodeFunc(decodeMQTT3)})
+
+// type MQTT3Layer struct {
+// 	ControlPacketType controlPacketType
+// 	Flags             byte
+// 	RemainingLength   int
+// 	Contents          []byte
+// }
+
+// func (layer MQTT3Layer) LayerType() gopacket.LayerType { return MQTT3LayerType }
+// func (layer MQTT3Layer) LayerContents() []byte         { return layer.Contents }
+// func (layer MQTT3Layer) LayerPayload() []byte          { return nil }
+
+// func calculateRemainingLength(packet []byte) (remainingLength int) {
+
+// 	multiplier := 1
+// 	remainingLength = 0
+
+// 	for _, nextByte := range packet {
+// 		remainingLength += int(nextByte&127) * multiplier
+// 		multiplier *= 128
+// 		if multiplier > 128*128*128 {
+// 			log.Println(errors.New("Malformed Remaining Length Header"))
+// 		}
+// 		if nextByte&128 == 0 {
+// 			break
+// 		}
+// 	}
+
+// 	return
+// }
+
+// func decodeControlPacketType(header byte) controlPacketType {
+// 	//MQTT control packet type is determined by the value of the 4 highest bits of the packet's first byte
+// 	return controlPacketType((header & 0xF0) >> 4)
+// }
+
+// func decodeMQTT3(data []byte, packet gopacket.PacketBuilder) error {
+// 	remainingLength := calculateRemainingLength(data[1:])
+// 	packet.AddLayer(&MQTT3Layer{decodeControlPacketType(data[0]), data[0] & 0xF, remainingLength, data[(remainingLength/128 + 2):]})
+
+// 	return nil
+// }
 
 //ListAvailableInterfaces uses pcap to print the name, descriptor, and IP addresses of the machine's network interfaces to the console.
 func ListAvailableInterfaces() {
@@ -133,6 +199,12 @@ func MQTTPackets(port int, promiscuity bool, snaplen int, timeout time.Duration,
 
 	for packet := range packetSource.Packets() {
 		writer.WritePacket(packet.Metadata().CaptureInfo, packet.Data())
-		fmt.Println(packet)
+		//fmt.Println(packet)
+		if packet.ApplicationLayer() != nil {
+			fmt.Println(gopacket.NewPacket(packet.ApplicationLayer().Payload(), mqttdecode.MQTT3LayerType, gopacket.Lazy))
+		}
+		// for _, layer := range packet.Layers() {
+		// 	fmt.Println("LAYER: ", layer.LayerType())
+		// }
 	}
 }
