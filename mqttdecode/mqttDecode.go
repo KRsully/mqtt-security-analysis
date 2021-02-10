@@ -54,5 +54,6 @@ func decodeVariableByteInteger(packet []byte) (remainingLength int, err error) {
 }
 
 func extractUTF8String(data []byte) (string, uint16, error) {
-	return string(data[2:binary.BigEndian.Uint16(data[:1])]), binary.BigEndian.Uint16(data[:1]), nil
+	stringLength := binary.BigEndian.Uint16(data)
+	return string(data[2 : 2+stringLength]), stringLength, nil
 }

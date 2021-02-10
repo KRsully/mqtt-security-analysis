@@ -6,7 +6,7 @@ import (
 
 var MQTT3ConnAckPacket = gopacket.RegisterLayerType(
 	3885,
-	gopacket.LayerTypeMetadata{Name: "MQTT 3.1.1 CONNACK Packet", Decoder: gopacket.DecodeFunc(decodeMQTT3ConnAckPacket)})
+	gopacket.LayerTypeMetadata{Name: "MQTT 3.1.1 CONNACK Packet", Decoder: gopacket.DecodeFunc(DecodeMQTT3ConnAckPacket)})
 
 type mqtt3ConnAckPacket struct {
 	VariableHeader mqtt3ConnAckVariableHeader
@@ -17,11 +17,10 @@ func (layer mqtt3ConnAckPacket) LayerType() gopacket.LayerType { return MQTT3Con
 func (layer mqtt3ConnAckPacket) LayerContents() []byte         { return layer.Contents }
 func (layer mqtt3ConnAckPacket) LayerPayload() []byte          { return nil }
 
-func decodeMQTT3ConnAckPacket(data []byte, packet gopacket.PacketBuilder) (err error) {
-	variableHeader, err := decodeMQTT3ConnectVariableHeader(data)
-	payload, err := decodeMQTT3ConnectPayload(data[variableHeader.Length+1:], variableHeader.ConnectFlags)
+func DecodeMQTT3ConnAckPacket(data []byte, packet gopacket.PacketBuilder) (err error) {
+	variableHeader, err := decodeMQTT3ConnAckVariableHeader(data)
 
-	packet.AddLayer(&mqtt3ConnectPacket{variableHeader, payload, data})
+	packet.AddLayer(&mqtt3ConnAckPacket{variableHeader, data})
 	return
 }
 

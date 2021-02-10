@@ -7,7 +7,7 @@ import (
 	"flag"
 	"os"
 
-	"github.com/KRSully/mqtt-security-analysis/capture"
+	"github.com/KRsully/mqtt-security-analysis/capture"
 	"github.com/google/gopacket/pcap"
 )
 

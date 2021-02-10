@@ -6,9 +6,9 @@ import (
 	"github.com/google/gopacket"
 )
 
-var mqttFixedHeaderLayer = gopacket.RegisterLayerType(
+var MQTTFixedHeaderLayer = gopacket.RegisterLayerType(
 	3883,
-	gopacket.LayerTypeMetadata{Name: "MQTT Fixed Header", Decoder: gopacket.DecodeFunc(DecodeMQTTFixedHeader)})
+	gopacket.LayerTypeMetadata{Name: "MQTT Fixed Header", Decoder: gopacket.DecodeFunc(decodeMQTTFixedHeader)})
 
 type mqttFixedHeader struct {
 	ControlPacketType string
@@ -18,7 +18,7 @@ type mqttFixedHeader struct {
 	Payload           []byte
 }
 
-func (layer mqttFixedHeader) LayerType() gopacket.LayerType { return MQTT3ConnectPacket }
+func (layer mqttFixedHeader) LayerType() gopacket.LayerType { return MQTTFixedHeaderLayer }
 func (layer mqttFixedHeader) LayerContents() []byte         { return layer.Contents }
 func (layer mqttFixedHeader) LayerPayload() []byte          { return nil }
 
@@ -27,7 +27,7 @@ func decodeControlPacketType(header byte) controlPacketType {
 	return controlPacketType((header & 0xF0) >> 4)
 }
 
-func DecodeMQTTFixedHeader(data []byte, packet gopacket.PacketBuilder) (err error) {
+func decodeMQTTFixedHeader(data []byte, packet gopacket.PacketBuilder) (err error) {
 	remainingLength, err := decodeVariableByteInteger(data[1:])
 	ctlPacketType := decodeControlPacketType(data[0])
 
@@ -40,15 +40,14 @@ func DecodeMQTTFixedHeader(data []byte, packet gopacket.PacketBuilder) (err erro
 	}
 
 	packet.AddLayer(&mqttFixedHeader{decodeControlPacketType(data[0]).String(),
-		data[0] & 0xF, remainingLength, data[0:(remainingLength/128 + 1)], data[(remainingLength/128 + 2):]})
-
-	//If the packet is a PUBLISH with QoS>0, or of type PUBACK through UNSUBACK, it has a variable header
-	// if (ctlPacketType == PUBLISH && data[0]&0x3 != 0) || (PUBLISH < ctlPacketType && ctlPacketType < PINGREQ) {
-	// 	return packet.NextDecoder(MQTTVariableHeaderLayer)
-	// }
+		data[0] & 0xF, remainingLength, data[0 : len(data)-remainingLength], data[len(data)-remainingLength:]})
+	//log.Printf("Payload?: %v", data[len(data)-remainingLength:])
 	switch ctlPacketType {
 	case 1:
-		DecodeMQTT3ConnectPacket(data[2:], packet)
+		DecodeMQTT3ConnectPacket(data[len(data)-remainingLength:], packet)
+	case 2:
+		DecodeMQTT3ConnAckPacket(data[len(data)-remainingLength:], packet)
+	default:
 	}
 
 	return nil

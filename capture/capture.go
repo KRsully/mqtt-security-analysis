@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	//"github.com/KRsully/mqtt-security-analysis/mqttdecode"
+	"github.com/KRsully/mqtt-security-analysis/mqttdecode"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/pcap"
@@ -119,7 +119,7 @@ func MQTTPackets(port int, promiscuity bool, snaplen int, timeout time.Duration,
 		writer.WritePacket(packet.Metadata().CaptureInfo, packet.Data())
 		//fmt.Println(packet)
 		if packet.ApplicationLayer() != nil {
-			fmt.Println(gopacket.NewPacket(packet.ApplicationLayer().Payload(), mqttdecode.mqttFixedHeaderLayer, gopacket.Lazy))
+			fmt.Println(gopacket.NewPacket(packet.ApplicationLayer().Payload(), mqttdecode.MQTTFixedHeaderLayer, gopacket.DecodeStreamsAsDatagrams))
 		}
 	}
 }
