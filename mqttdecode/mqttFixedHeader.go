@@ -35,18 +35,76 @@ func decodeMQTTFixedHeader(data []byte, packet gopacket.PacketBuilder) (err erro
 		return err
 	}
 
-	if ctlPacketType < 1 || ctlPacketType > 15 {
+	if ctlPacketType < 1 {
 		return errors.New("Invalid Control Type Error")
 	}
 
 	packet.AddLayer(&mqttFixedHeader{decodeControlPacketType(data[0]).String(),
 		data[0] & 0xF, remainingLength, data[0 : len(data)-remainingLength], data[len(data)-remainingLength:]})
-	//log.Printf("Payload?: %v", data[len(data)-remainingLength:])
 	switch ctlPacketType {
 	case 1:
-		DecodeMQTT3ConnectPacket(data[len(data)-remainingLength:], packet)
+		err = DecodeMQTT3ConnectPacket(data[len(data)-remainingLength:], packet)
+		if err != nil {
+			//DecodeMQTT5
+		}
 	case 2:
-		DecodeMQTT3ConnAckPacket(data[len(data)-remainingLength:], packet)
+		err = DecodeMQTT3ConnAckPacket(data[len(data)-remainingLength:], packet)
+		if err != nil {
+			//DecodeMQTT5
+		}
+	case 3:
+		err = DecodeMQTT3PublishPacket(data[len(data)-remainingLength:], packet)
+		if err != nil {
+			//DecodeMQTT5
+		}
+	case 4:
+		err = DecodeMQTT3PubAckPacket(data[len(data)-remainingLength:], packet)
+		if err != nil {
+			//DecodeMQTT5
+		}
+	case 5:
+		err = DecodeMQTT3PubRecPacket(data[len(data)-remainingLength:], packet)
+		if err != nil {
+			//DecodeMQTT5
+		}
+	case 6:
+		err = DecodeMQTT3PubRelPacket(data[len(data)-remainingLength:], packet)
+		if err != nil {
+			//DecodeMQTT5
+		}
+	case 7:
+		err = DecodeMQTT3PubCompPacket(data[len(data)-remainingLength:], packet)
+		if err != nil {
+			//DecodeMQTT5
+		}
+	case 8:
+		err = DecodeMQTT3SubscribePacket(data[len(data)-remainingLength:], packet)
+		if err != nil {
+			//DecodeMQTT5
+		}
+	case 9:
+		err = DecodeMQTT3SubAckPacket(data[len(data)-remainingLength:], packet)
+		if err != nil {
+			//DecodeMQTT5
+		}
+	case 10:
+		err = DecodeMQTT3UnsubscribePacket(data[len(data)-remainingLength:], packet)
+		if err != nil {
+			//DecodeMQTT5
+		}
+	case 11:
+		err = DecodeMQTT3UnsubAckPacket(data[len(data)-remainingLength:], packet)
+		if err != nil {
+			//DecodeMQTT5
+		}
+	case 12:
+		//PINGREQ Packet
+	case 13:
+		//PINGRESP Packet
+	case 14:
+		//DISCONNECT Packet
+	case 15:
+		//AUTH Packet (MQTT 5.0 only)
 	default:
 	}
 

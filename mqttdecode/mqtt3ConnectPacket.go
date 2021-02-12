@@ -1,8 +1,6 @@
 package mqttdecode
 
 import (
-	"log"
-
 	"github.com/google/gopacket"
 )
 
@@ -21,7 +19,6 @@ func (layer mqtt3ConnectPacket) LayerContents() []byte         { return layer.Co
 func (layer mqtt3ConnectPacket) LayerPayload() []byte          { return nil }
 
 func DecodeMQTT3ConnectPacket(data []byte, packet gopacket.PacketBuilder) (err error) {
-	log.Printf("Connect Data: %v", data)
 	variableHeader, err := decodeMQTT3ConnectVariableHeader(data)
 	payload, err := decodeMQTT3ConnectPayload(data[variableHeader.Length:], variableHeader.ConnectFlags)
 
@@ -60,10 +57,8 @@ type mqtt3ConnectPayload struct {
 
 func decodeMQTT3ConnectPayload(data []byte, flags byte) (payload mqtt3ConnectPayload, err error) {
 	//Client Identifier --> Will Retain --> Will Message --> User Name --> Password
-	log.Printf("Payload: %v", data)
 	var stringLength uint16
 	payload.ClientID, stringLength, _ = extractUTF8String(data)
-	log.Printf("ClientID: %s", payload.ClientID)
 	if flags != 0 {
 		data = data[stringLength+1:]
 	}
@@ -75,20 +70,17 @@ func decodeMQTT3ConnectPayload(data []byte, flags byte) (payload mqtt3ConnectPay
 		payload.WillQoS = uint16(flags & 18)
 		payload.WillMessage, stringLength, _ = extractUTF8String(data)
 		data = data[stringLength+1:]
-		log.Printf("will")
 	}
 
 	if flags&0x80 == 1 {
 		//Username Flag
 		payload.Username, stringLength, _ = extractUTF8String(data)
 		data = data[stringLength+1:]
-		log.Printf("uname")
 	}
 	if flags&0x40 == 1 {
 		//Password Flag
 		payload.Password, stringLength, _ = extractUTF8String(data)
 		data = data[stringLength+1:]
-		log.Printf("passwd")
 	}
 
 	if flags&0x0 != 0 {

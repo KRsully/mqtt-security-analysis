@@ -8,7 +8,7 @@ import (
 
 var MQTT3PubCompPacket = gopacket.RegisterLayerType(
 	3890,
-	gopacket.LayerTypeMetadata{Name: "MQTT 3.1.1 PUBCOMP Packet", Decoder: gopacket.DecodeFunc(decodeMQTT3PubCompPacket)})
+	gopacket.LayerTypeMetadata{Name: "MQTT 3.1.1 PUBCOMP Packet", Decoder: gopacket.DecodeFunc(DecodeMQTT3PubCompPacket)})
 
 type mqtt3PubCompPacket struct {
 	VariableHeader mqtt3PubAckVariableHeader
@@ -19,7 +19,7 @@ func (layer mqtt3PubCompPacket) LayerType() gopacket.LayerType { return MQTT3Pub
 func (layer mqtt3PubCompPacket) LayerContents() []byte         { return layer.Contents }
 func (layer mqtt3PubCompPacket) LayerPayload() []byte          { return nil }
 
-func decodeMQTT3PubCompPacket(data []byte, packet gopacket.PacketBuilder) (err error) {
+func DecodeMQTT3PubCompPacket(data []byte, packet gopacket.PacketBuilder) (err error) {
 	variableHeader, err := decodeMQTT3PubRecVariableHeader(data)
 
 	packet.AddLayer(&mqtt3PubAckPacket{variableHeader, data})
