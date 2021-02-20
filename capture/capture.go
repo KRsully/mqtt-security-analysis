@@ -119,7 +119,7 @@ func MQTTPackets(port int, promiscuity bool, snaplen int, timeout time.Duration,
 		writer.WritePacket(packet.Metadata().CaptureInfo, packet.Data())
 		//fmt.Println(packet)
 		if packet.ApplicationLayer() != nil {
-			fmt.Println(gopacket.NewPacket(packet.ApplicationLayer().Payload(), mqttdecode.MQTTFixedHeaderLayer, gopacket.DecodeStreamsAsDatagrams))
+			fmt.Println(gopacket.NewPacket(packet.ApplicationLayer().Payload(), mqttdecode.MQTTFixedHeaderLayer, gopacket.DecodeOptions{}))
 		}
 	}
 }

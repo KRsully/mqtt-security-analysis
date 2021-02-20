@@ -28,7 +28,7 @@ func DecodeMQTT3PublishPacket(data []byte, packet gopacket.PacketBuilder) (err e
 }
 
 type mqtt3PublishVariableHeader struct {
-	TopicLength      uint16
+	TopicLength      int
 	TopicString      string
 	PacketIdentifier uint16
 }

@@ -28,7 +28,7 @@ func decodeControlPacketType(header byte) controlPacketType {
 }
 
 func decodeMQTTFixedHeader(data []byte, packet gopacket.PacketBuilder) (err error) {
-	remainingLength, err := decodeVariableByteInteger(data[1:])
+	remainingLength, _, err := decodeVariableByteInteger(data[1:])
 	ctlPacketType := decodeControlPacketType(data[0])
 
 	if err != nil {
@@ -39,61 +39,70 @@ func decodeMQTTFixedHeader(data []byte, packet gopacket.PacketBuilder) (err erro
 		return errors.New("Invalid Control Type Error")
 	}
 
+	payloadStartIndex := len(data) - remainingLength
+
 	packet.AddLayer(&mqttFixedHeader{decodeControlPacketType(data[0]).String(),
-		data[0] & 0xF, remainingLength, data[0 : len(data)-remainingLength], data[len(data)-remainingLength:]})
+		data[0] & 0xF, remainingLength, data[0:payloadStartIndex], data[payloadStartIndex:]})
+	//log.Printf("packet payload: %v\n", data[payloadStartIndex:])
 	switch ctlPacketType {
+	/*If a decoder function runs into any error, gopacket panics
+	* Since there doesn't see to be a uniform way of determining if the packet is 3.1.1 or 5.0,
+	* we'll just have a deferred error/panic check for every single decoder...
+	 */
 	case 1:
-		err = DecodeMQTT3ConnectPacket(data[len(data)-remainingLength:], packet)
-		if err != nil {
-			//DecodeMQTT5
-		}
+		defer func() {
+			if err := recover(); err != nil {
+				err = DecodeMQTT5ConnectPacket(data[payloadStartIndex:], packet)
+			}
+		}()
+		err = DecodeMQTT3ConnectPacket(data[payloadStartIndex:], packet)
 	case 2:
-		err = DecodeMQTT3ConnAckPacket(data[len(data)-remainingLength:], packet)
+		err = DecodeMQTT3ConnAckPacket(data[payloadStartIndex:], packet)
 		if err != nil {
 			//DecodeMQTT5
 		}
 	case 3:
-		err = DecodeMQTT3PublishPacket(data[len(data)-remainingLength:], packet)
+		err = DecodeMQTT3PublishPacket(data[payloadStartIndex:], packet)
 		if err != nil {
 			//DecodeMQTT5
 		}
 	case 4:
-		err = DecodeMQTT3PubAckPacket(data[len(data)-remainingLength:], packet)
+		err = DecodeMQTT3PubAckPacket(data[payloadStartIndex:], packet)
 		if err != nil {
 			//DecodeMQTT5
 		}
 	case 5:
-		err = DecodeMQTT3PubRecPacket(data[len(data)-remainingLength:], packet)
+		err = DecodeMQTT3PubRecPacket(data[payloadStartIndex:], packet)
 		if err != nil {
 			//DecodeMQTT5
 		}
 	case 6:
-		err = DecodeMQTT3PubRelPacket(data[len(data)-remainingLength:], packet)
+		err = DecodeMQTT3PubRelPacket(data[payloadStartIndex:], packet)
 		if err != nil {
 			//DecodeMQTT5
 		}
 	case 7:
-		err = DecodeMQTT3PubCompPacket(data[len(data)-remainingLength:], packet)
+		err = DecodeMQTT3PubCompPacket(data[payloadStartIndex:], packet)
 		if err != nil {
 			//DecodeMQTT5
 		}
 	case 8:
-		err = DecodeMQTT3SubscribePacket(data[len(data)-remainingLength:], packet)
+		err = DecodeMQTT3SubscribePacket(data[payloadStartIndex:], packet)
 		if err != nil {
 			//DecodeMQTT5
 		}
 	case 9:
-		err = DecodeMQTT3SubAckPacket(data[len(data)-remainingLength:], packet)
+		err = DecodeMQTT3SubAckPacket(data[payloadStartIndex:], packet)
 		if err != nil {
 			//DecodeMQTT5
 		}
 	case 10:
-		err = DecodeMQTT3UnsubscribePacket(data[len(data)-remainingLength:], packet)
+		err = DecodeMQTT3UnsubscribePacket(data[payloadStartIndex:], packet)
 		if err != nil {
 			//DecodeMQTT5
 		}
 	case 11:
-		err = DecodeMQTT3UnsubAckPacket(data[len(data)-remainingLength:], packet)
+		err = DecodeMQTT3UnsubAckPacket(data[payloadStartIndex:], packet)
 		if err != nil {
 			//DecodeMQTT5
 		}

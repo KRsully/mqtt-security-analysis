@@ -18,7 +18,7 @@ type mqtt3SubscribePacket struct {
 
 type topicSubscription struct {
 	TopicString string
-	TopicLength uint16
+	TopicLength int
 	QoS         int
 }
 

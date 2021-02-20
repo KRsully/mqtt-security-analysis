@@ -27,19 +27,20 @@ func DecodeMQTT3ConnectPacket(data []byte, packet gopacket.PacketBuilder) (err e
 }
 
 type mqtt3ConnectVariableHeader struct {
-	NameLength    uint16
+	NameLength    int
 	ProtocolName  string
 	ProtocolLevel uint8
 	ConnectFlags  byte
 	KeepAlive     []byte
-	Length        uint16
+	Length        int
 }
 
 func decodeMQTT3ConnectVariableHeader(data []byte) (header mqtt3ConnectVariableHeader, err error) {
 	header.ProtocolName, header.NameLength, _ = extractUTF8String(data)
-	header.ProtocolLevel = data[header.NameLength]
-	header.ConnectFlags = data[header.NameLength+1]
-	header.KeepAlive = data[header.NameLength+2 : header.NameLength+4]
+	data = data[2+header.NameLength:]
+	header.ProtocolLevel = data[0]
+	header.ConnectFlags = data[1]
+	header.KeepAlive = data[2:4]
 	//2 bytes of protocol name length, NameLength bytes of string, and 4 bytes for level, flags, and keep alive
 	header.Length = 2 + header.NameLength + 4
 
@@ -57,7 +58,7 @@ type mqtt3ConnectPayload struct {
 
 func decodeMQTT3ConnectPayload(data []byte, flags byte) (payload mqtt3ConnectPayload, err error) {
 	//Client Identifier --> Will Retain --> Will Message --> User Name --> Password
-	var stringLength uint16
+	var stringLength int
 	payload.ClientID, stringLength, _ = extractUTF8String(data)
 	if flags != 0 {
 		data = data[stringLength+1:]

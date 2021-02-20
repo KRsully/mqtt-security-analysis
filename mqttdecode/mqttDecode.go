@@ -36,12 +36,12 @@ func (cpt controlPacketType) String() string {
 		"PUBCOMP", "SUBSCRIBE", "SUBACK", "UNSUBSCRIBE", "UNSUBACK", "PINGREQ", "PINGRESP", "DISCONNECT", "AUTH"}[cpt]
 }
 
-func decodeVariableByteInteger(packet []byte) (remainingLength int, err error) {
+func decodeVariableByteInteger(packet []byte) (value int, numberOfBytes int, err error) {
 	multiplier := 1
-	value := 0
 
 	for _, nextByte := range packet {
 		value += int(nextByte&127) * multiplier
+		numberOfBytes += 1
 		if multiplier > 128*128*128 {
 			err = errors.New("Malformed Variable Length Integer")
 		}
@@ -50,10 +50,10 @@ func decodeVariableByteInteger(packet []byte) (remainingLength int, err error) {
 			break
 		}
 	}
-	return value, err
+	return value, numberOfBytes, err
 }
 
-func extractUTF8String(data []byte) (string, uint16, error) {
+func extractUTF8String(data []byte) (string, int, error) {
 	stringLength := binary.BigEndian.Uint16(data)
-	return string(data[2 : 2+stringLength]), stringLength, nil
+	return string(data[2 : 2+stringLength]), int(stringLength), nil
 }

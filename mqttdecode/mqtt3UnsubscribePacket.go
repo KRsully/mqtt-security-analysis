@@ -12,7 +12,7 @@ var MQTT3UnsubscribePacket = gopacket.RegisterLayerType(
 
 type topic struct {
 	topicString string
-	topicLength uint16
+	topicLength int
 }
 
 type mqtt3UnsubscribePacket struct {
