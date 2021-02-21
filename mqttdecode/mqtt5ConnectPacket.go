@@ -21,7 +21,7 @@ func (layer mqtt5ConnectPacket) LayerPayload() []byte          { return nil }
 func DecodeMQTT5ConnectPacket(data []byte, packet gopacket.PacketBuilder) (err error) {
 	variableHeader, err := decodeMQTT5ConnectVariableHeader(data)
 
-	payload, err := decodeMQTT5ConnectPayload(data[int(variableHeader.Length):], variableHeader.ConnectFlags)
+	payload, err := decodeMQTT5ConnectPayload(data[variableHeader.Length:], variableHeader.ConnectFlags)
 
 	packet.AddLayer(&mqtt5ConnectPacket{variableHeader, payload, data})
 	return
@@ -69,31 +69,31 @@ func decodeMQTT5ConnectPayload(data []byte, flags byte) (payload mqtt5ConnectPay
 	var stringLength int
 	payload.ClientID, stringLength, _ = extractUTF8String(data)
 	if flags != 0 {
-		data = data[stringLength+1:]
+		data = data[2+stringLength:]
 	}
 
-	if flags&0x4 == 1 {
+	if flags&0x4 != 0 {
 		//Will Flag
 		var willPropertiesLength int
 		payload.WillProperties, willPropertiesLength = extractMQTT5Properties(data)
-		data = data[willPropertiesLength+1:]
+		data = data[willPropertiesLength:]
 		payload.WillTopic, stringLength, _ = extractUTF8String(data)
-		data = data[stringLength+1:]
-		payload.WillQoS = uint16(flags & 18)
+		data = data[2+stringLength:]
+		payload.WillQoS = uint16(flags & 0x18)
 		// Spec says that the payload is Binary Data?
 		payload.WillPayload, stringLength, _ = extractUTF8String(data)
-		data = data[stringLength+1:]
+		data = data[2+stringLength:]
 	}
 
-	if flags&0x80 == 1 {
+	if flags&0x80 != 0 {
 		//Username Flag
 		payload.Username, stringLength, _ = extractUTF8String(data)
-		data = data[stringLength+1:]
+		data = data[2+stringLength:]
 	}
-	if flags&0x40 == 1 {
+	if flags&0x40 != 0 {
 		//Password Flag
 		payload.Password, stringLength, _ = extractUTF8String(data)
-		data = data[stringLength+1:]
+		data = data[2+stringLength:]
 	}
 
 	if flags&0x0 != 0 {

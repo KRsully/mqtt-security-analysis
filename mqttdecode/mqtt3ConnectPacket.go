@@ -61,27 +61,27 @@ func decodeMQTT3ConnectPayload(data []byte, flags byte) (payload mqtt3ConnectPay
 	var stringLength int
 	payload.ClientID, stringLength, _ = extractUTF8String(data)
 	if flags != 0 {
-		data = data[stringLength+1:]
+		data = data[2+stringLength:]
 	}
 
-	if flags&0x4 == 1 {
+	if flags&0x4 != 0 {
 		//Will Flag
 		payload.WillTopic, stringLength, _ = extractUTF8String(data)
-		data = data[stringLength+1:]
-		payload.WillQoS = uint16(flags & 18)
+		data = data[2+stringLength:]
+		payload.WillQoS = uint16(flags & 0x18)
 		payload.WillMessage, stringLength, _ = extractUTF8String(data)
-		data = data[stringLength+1:]
+		data = data[2+stringLength:]
 	}
 
-	if flags&0x80 == 1 {
+	if flags&0x80 != 0 {
 		//Username Flag
 		payload.Username, stringLength, _ = extractUTF8String(data)
-		data = data[stringLength+1:]
+		data = data[2+stringLength:]
 	}
-	if flags&0x40 == 1 {
+	if flags&0x40 != 0 {
 		//Password Flag
 		payload.Password, stringLength, _ = extractUTF8String(data)
-		data = data[stringLength+1:]
+		data = data[2+stringLength:]
 	}
 
 	if flags&0x0 != 0 {
