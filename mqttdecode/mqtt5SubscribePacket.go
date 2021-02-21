@@ -2,7 +2,6 @@ package mqttdecode
 
 import (
 	"encoding/binary"
-	"log"
 
 	"github.com/google/gopacket"
 )
@@ -49,7 +48,6 @@ func decodeMQTT5SubscribeVariableHeader(data []byte) (header mqtt5SubscribeVaria
 
 func decodeMQTT5SubscribePayload(data []byte) (topics []mqtt5TopicSubscription, err error) {
 	pos := 0
-	log.Printf("payload: %v", data)
 	for pos < len(data) {
 		topicString, topicLength, _ := extractUTF8String(data[pos:])
 		topics = append(topics, mqtt5TopicSubscription{topicString, data[pos+2+topicLength]})
