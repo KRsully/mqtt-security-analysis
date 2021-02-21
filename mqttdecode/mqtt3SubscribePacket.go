@@ -12,11 +12,11 @@ var MQTT3SubscribePacket = gopacket.RegisterLayerType(
 
 type mqtt3SubscribePacket struct {
 	VariableHeader mqtt3SubscribeVariableHeader
-	Topics         []topicSubscription
+	Topics         []mqtt3TopicSubscription
 	Contents       []byte
 }
 
-type topicSubscription struct {
+type mqtt3TopicSubscription struct {
 	TopicString string
 	TopicLength int
 	QoS         int
@@ -43,12 +43,12 @@ func decodeMQTT3SubscribeVariableHeader(data []byte) (header mqtt3SubscribeVaria
 	return
 }
 
-func decodeMQTT3SubscribePayload(data []byte) (topics []topicSubscription, err error) {
+func decodeMQTT3SubscribePayload(data []byte) (topics []mqtt3TopicSubscription, err error) {
 	pos := 0
 
 	for pos < len(data) {
 		topicString, topicLength, _ := extractUTF8String(data[pos:])
-		topics = append(topics, topicSubscription{topicString, topicLength, int(data[pos+2+int(topicLength)])})
+		topics = append(topics, mqtt3TopicSubscription{topicString, topicLength, int(data[pos+2+topicLength])})
 		//topicLength + 2 bytes for length value, 1 for QoS value
 		pos += int(topicLength) + 3
 	}

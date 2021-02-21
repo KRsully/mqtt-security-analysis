@@ -27,10 +27,22 @@ func decodeControlPacketType(header byte) controlPacketType {
 	return controlPacketType((header & 0xF0) >> 4)
 }
 
+func appendFlags(payload []byte, flags byte) []byte {
+	/*
+	*	Some packet types need to be able to check the flags in the fixed header
+	*  	For now, we'll prepend the flags to the payload before we call the packet-specific decoder
+	*	Yeah it's not great.
+	 */
+	payload = append(payload, 0)
+	copy(payload[1:], payload)
+	payload[0] = flags
+	return payload
+}
+
 func decodeMQTTFixedHeader(data []byte, packet gopacket.PacketBuilder) (err error) {
 	remainingLength, _, err := decodeVariableByteInteger(data[1:])
 	ctlPacketType := decodeControlPacketType(data[0])
-
+	flags := data[0] & 0xF
 	if err != nil {
 		return err
 	}
@@ -42,7 +54,7 @@ func decodeMQTTFixedHeader(data []byte, packet gopacket.PacketBuilder) (err erro
 	payloadStartIndex := len(data) - remainingLength
 
 	packet.AddLayer(&mqttFixedHeader{decodeControlPacketType(data[0]).String(),
-		data[0] & 0xF, remainingLength, data[0:payloadStartIndex], data[payloadStartIndex:]})
+		flags, remainingLength, data[0:payloadStartIndex], data[payloadStartIndex:]})
 	//log.Printf("packet payload: %v\n", data[payloadStartIndex:])
 	switch ctlPacketType {
 	/*If a decoder function runs into any error, gopacket panics
@@ -52,69 +64,95 @@ func decodeMQTTFixedHeader(data []byte, packet gopacket.PacketBuilder) (err erro
 	case 1:
 		defer func() {
 			if err := recover(); err != nil {
-				err = DecodeMQTT5ConnectPacket(data[payloadStartIndex:], packet)
+				err = DecodeMQTT3ConnectPacket(data[payloadStartIndex:], packet)
 			}
 		}()
-		err = DecodeMQTT3ConnectPacket(data[payloadStartIndex:], packet)
+		err = DecodeMQTT5ConnectPacket(data[payloadStartIndex:], packet)
 	case 2:
-		err = DecodeMQTT3ConnAckPacket(data[payloadStartIndex:], packet)
-		if err != nil {
-			//DecodeMQTT5
-		}
+		defer func() {
+			if err := recover(); err != nil {
+				err = DecodeMQTT3ConnAckPacket(data[payloadStartIndex:], packet)
+			}
+		}()
+		err = DecodeMQTT5ConnAckPacket(data[payloadStartIndex:], packet)
 	case 3:
-		err = DecodeMQTT3PublishPacket(data[payloadStartIndex:], packet)
-		if err != nil {
-			//DecodeMQTT5
-		}
+		defer func() {
+			if err := recover(); err != nil {
+				err = DecodeMQTT3PublishPacket(appendFlags(data[payloadStartIndex:], flags), packet)
+			}
+		}()
+		err = DecodeMQTT5PublishPacket(appendFlags(data[payloadStartIndex:], flags), packet)
 	case 4:
-		err = DecodeMQTT3PubAckPacket(data[payloadStartIndex:], packet)
-		if err != nil {
-			//DecodeMQTT5
-		}
+		defer func() {
+			if err := recover(); err != nil {
+				err = DecodeMQTT3PubAckPacket(data[payloadStartIndex:], packet)
+			}
+		}()
+		err = DecodeMQTT5PubAckPacket(data[payloadStartIndex:], packet)
 	case 5:
-		err = DecodeMQTT3PubRecPacket(data[payloadStartIndex:], packet)
-		if err != nil {
-			//DecodeMQTT5
-		}
+		defer func() {
+			if err := recover(); err != nil {
+				err = DecodeMQTT3PubRecPacket(data[payloadStartIndex:], packet)
+			}
+		}()
+		err = DecodeMQTT5PubRecPacket(data[payloadStartIndex:], packet)
 	case 6:
-		err = DecodeMQTT3PubRelPacket(data[payloadStartIndex:], packet)
-		if err != nil {
-			//DecodeMQTT5
-		}
+		defer func() {
+			if err := recover(); err != nil {
+				err = DecodeMQTT3PubRelPacket(data[payloadStartIndex:], packet)
+			}
+		}()
+		err = DecodeMQTT5PubRelPacket(data[payloadStartIndex:], packet)
 	case 7:
-		err = DecodeMQTT3PubCompPacket(data[payloadStartIndex:], packet)
-		if err != nil {
-			//DecodeMQTT5
-		}
+		defer func() {
+			if err := recover(); err != nil {
+				err = DecodeMQTT3PubCompPacket(data[payloadStartIndex:], packet)
+			}
+		}()
+		err = DecodeMQTT5PubCompPacket(data[payloadStartIndex:], packet)
 	case 8:
-		err = DecodeMQTT3SubscribePacket(data[payloadStartIndex:], packet)
-		if err != nil {
-			//DecodeMQTT5
-		}
+		defer func() {
+			if err := recover(); err != nil {
+				err = DecodeMQTT3SubscribePacket(data[payloadStartIndex:], packet)
+			}
+		}()
+		err = DecodeMQTT5SubscribePacket(data[payloadStartIndex:], packet)
 	case 9:
-		err = DecodeMQTT3SubAckPacket(data[payloadStartIndex:], packet)
-		if err != nil {
-			//DecodeMQTT5
-		}
+		defer func() {
+			if err := recover(); err != nil {
+				err = DecodeMQTT3SubAckPacket(data[payloadStartIndex:], packet)
+			}
+		}()
+		err = DecodeMQTT5SubAckPacket(data[payloadStartIndex:], packet)
 	case 10:
-		err = DecodeMQTT3UnsubscribePacket(data[payloadStartIndex:], packet)
-		if err != nil {
-			//DecodeMQTT5
-		}
+		defer func() {
+			if err := recover(); err != nil {
+				err = DecodeMQTT3UnsubscribePacket(data[payloadStartIndex:], packet)
+			}
+		}()
+		err = DecodeMQTT5UnsubscribePacket(data[payloadStartIndex:], packet)
 	case 11:
-		err = DecodeMQTT3UnsubAckPacket(data[payloadStartIndex:], packet)
-		if err != nil {
-			//DecodeMQTT5
-		}
+		defer func() {
+			if err := recover(); err != nil {
+				err = DecodeMQTT3UnsubAckPacket(data[payloadStartIndex:], packet)
+			}
+		}()
+		err = DecodeMQTT5UnsubAckPacket(data[payloadStartIndex:], packet)
 	case 12:
 		//PINGREQ Packet
 	case 13:
 		//PINGRESP Packet
 	case 14:
 		//DISCONNECT Packet
+		if len(data) > 2 {
+			//Sometimes, MQTT5 disconnect packets have no variable header?
+			err = DecodeMQTT5DisconnectPacket(data[payloadStartIndex:], packet)
+		}
 	case 15:
 		//AUTH Packet (MQTT 5.0 only)
+		err = DecodeMQTT5AuthPacket(data[payloadStartIndex:], packet)
 	default:
+		//?
 	}
 
 	return nil

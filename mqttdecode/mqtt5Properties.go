@@ -2,7 +2,6 @@ package mqttdecode
 
 import (
 	"encoding/binary"
-	"log"
 )
 
 type propertyIdentifier int
@@ -11,7 +10,6 @@ const (
 	payloadFormatIndicator = propertyIdentifier(iota + 1)
 	messageExpiryInterval
 	contentType
-	_
 	_
 	_
 	_
@@ -34,7 +32,7 @@ const (
 	requestProblemInformation
 	willDelayInterval
 	requestResponseInformation
-	ResponseInformation
+	responseInformation
 	_
 	serverReference
 	_
@@ -110,6 +108,8 @@ func (pi propertyIdentifier) resolveContentSize(data []byte) (size int) {
 	case 3, 8, 18, 21, 26, 28, 31:
 		//Property is a single UTF-8 Encoded String
 		_, size, _ = extractUTF8String(data)
+		//Every UTF-8 string is encoded using 2 bytes for size
+		size += 2
 	case 9, 22:
 		//Property is Binary Data
 		// What size is it????
@@ -124,7 +124,7 @@ func (pi propertyIdentifier) resolveContentSize(data []byte) (size int) {
 		//Property is a pair of UTF-8 Encoded Strings
 		_, strLength1, _ := extractUTF8String(data)
 		_, strLength2, _ := extractUTF8String(data[2+strLength1:])
-		size = strLength1 + strLength2
+		size = strLength1 + strLength2 + 4
 	}
 
 	return size
@@ -146,17 +146,26 @@ func extractMQTT5Properties(data []byte) (properties []MQTT5Property, totalLengt
 	propertiesLength, propertiesLengthInBytes, err := decodeVariableByteInteger(data)
 	if err != nil {
 		//Malformed properties length value
+		return
 	}
 	totalLength = propertiesLength + propertiesLengthInBytes
 	data = data[propertiesLengthInBytes:]
 	propertiesLength -= propertiesLengthInBytes
 
 	for propertiesLength > 0 {
-		propInteger, propIntegerLengthInBytes, _ := decodeVariableByteInteger(data)
+		propInteger, propIntegerLengthInBytes, err := decodeVariableByteInteger(data)
+		if err != nil {
+			//Malformed property identifier value
+			return
+		}
 		data = data[propIntegerLengthInBytes:]
 		propIdentifier := propertyIdentifier(propInteger)
-		log.Println(propIdentifier)
+
+		//log.Println(propIdentifier)
 		propLength := propIdentifier.resolveContentSize(data)
+		if propLength < 1 {
+			return
+		}
 		properties = append(properties, MQTT5Property{
 			propInteger,
 			propIdentifier.String(),
@@ -164,8 +173,8 @@ func extractMQTT5Properties(data []byte) (properties []MQTT5Property, totalLengt
 			//propIdentifier.resolveDecoder(),
 			propLength,
 		})
-		// Number of bytes to code for length and property length
-		propertiesLength -= propIntegerLengthInBytes + propLength
+		data = data[propLength:]
+		propertiesLength -= (propIntegerLengthInBytes + propLength)
 	}
 
 	return properties, totalLength
