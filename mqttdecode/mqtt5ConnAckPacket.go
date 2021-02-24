@@ -34,6 +34,7 @@ type mqtt5ConnAckVariableHeader struct {
 func decodeMQTT5ConnAckVariableHeader(data []byte) (header mqtt5ConnAckVariableHeader, err error) {
 	header.ConnectAckFlag = data[0]
 	header.ConnectReturnCode = data[1]
+	//Maybe panic if the return code isn't recognized?
 	header.ReturnCodeName = resolveReasonCode(header.ConnectReturnCode)
 	header.Properties, _ = extractMQTT5Properties(data[2:])
 	return

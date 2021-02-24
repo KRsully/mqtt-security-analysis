@@ -9,8 +9,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/KRsully/mqtt-security-analysis/mqttdecode"
-
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/pcap"
 	"github.com/google/gopacket/pcapgo"
@@ -117,9 +115,9 @@ func MQTTPackets(port int, promiscuity bool, snaplen int, timeout time.Duration,
 
 	for packet := range packetSource.Packets() {
 		writer.WritePacket(packet.Metadata().CaptureInfo, packet.Data())
-		//fmt.Println(packet)
+		fmt.Println(packet)
 		if packet.ApplicationLayer() != nil {
-			fmt.Println(gopacket.NewPacket(packet.ApplicationLayer().Payload(), mqttdecode.MQTTFixedHeaderLayer, gopacket.DecodeOptions{}))
+			//fmt.Println(gopacket.NewPacket(packet.ApplicationLayer().Payload(), mqttdecode.MQTTFixedHeaderLayer, gopacket.DecodeOptions{}))
 		}
 	}
 }
