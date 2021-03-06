@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	port := flag.Int("p", 1883, "port to capture MQTT packets on")
+	ports := flag.String("p", "1883,8883", "comma-separated port(s) to capture MQTT packets on")
 	promiscuity := flag.Bool("pro", false, "promiscuous mode on")
 	snaplen := flag.Int("sl", 65535, "maximum bytes per packet capture") //Is MQTT packet max 512 bytes?
 	timeout := flag.Duration("t", pcap.BlockForever, "time to wait for additional packets after packet capture before returning (min. nanoseconds)")
@@ -24,6 +24,6 @@ func main() {
 	if len(os.Args) < 2 {
 		capture.ListAvailableInterfaces()
 	} else {
-		capture.MQTTPackets(*port, *promiscuity, *snaplen, *timeout, flag.Args())
+		capture.MQTTPackets(*ports, *promiscuity, *snaplen, *timeout, flag.Args())
 	}
 }

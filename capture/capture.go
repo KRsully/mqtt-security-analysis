@@ -7,9 +7,12 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/KRsully/mqtt-security-analysis/mqttdecode"
 	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 	"github.com/google/gopacket/pcap"
 	"github.com/google/gopacket/pcapgo"
 )
@@ -83,7 +86,7 @@ func parseInterface(deviceIdentifier string) string {
 }
 
 //MQTTPackets uses the pcap and gopacket libraries to capture MQTT packets on the user-specified network interface
-func MQTTPackets(port int, promiscuity bool, snaplen int, timeout time.Duration, device []string) {
+func MQTTPackets(ports string, promiscuity bool, snaplen int, timeout time.Duration, device []string) {
 
 	deviceName := parseInterface(device[0])
 
@@ -98,12 +101,18 @@ func MQTTPackets(port int, promiscuity bool, snaplen int, timeout time.Duration,
 
 	defer pcapHandle.Close()
 
-	//TODO: Allow for user specification of ports to watch
-	//pcapHandle.SetBPFFilter("tcp and port " + strconv.Itoa(port))
-	pcapHandle.SetBPFFilter("tcp and port 1883 or port 8883")
+	//Create a BPF filter string that only lets traffic on the desginated ports pass through
+	filter := "tcp and port"
+	portsSlice := strings.Split(ports, ",")
+	for _, port := range portsSlice[:len(portsSlice)-1] {
+		filter += fmt.Sprintf(" %s or", port)
+	}
+	filter += fmt.Sprintf(" %s", portsSlice[len(portsSlice)-1])
+	pcapHandle.SetBPFFilter(filter)
 
 	packetSource := gopacket.NewPacketSource(pcapHandle, pcapHandle.LinkType())
 
+	//Create a pcap file with the packets that we capture
 	file, err := os.Create("capture.pcap")
 	if err != nil {
 		log.Panic(err)
@@ -115,9 +124,15 @@ func MQTTPackets(port int, promiscuity bool, snaplen int, timeout time.Duration,
 
 	for packet := range packetSource.Packets() {
 		writer.WritePacket(packet.Metadata().CaptureInfo, packet.Data())
-		fmt.Println(packet)
+		//fmt.Println(packet)
+		var decodedPacket gopacket.Packet
 		if packet.ApplicationLayer() != nil {
-			//fmt.Println(gopacket.NewPacket(packet.ApplicationLayer().Payload(), mqttdecode.MQTTFixedHeaderLayer, gopacket.DecodeOptions{}))
+			decodedPacket = gopacket.NewPacket(packet.ApplicationLayer().Payload(), layers.LayerTypeTLS, gopacket.DecodeOptions{Lazy: false, DecodeStreamsAsDatagrams: true})
+			if decodedPacket.ErrorLayer() != nil {
+				decodedPacket = gopacket.NewPacket(packet.ApplicationLayer().Payload(), mqttdecode.MQTTFixedHeaderLayer, gopacket.DecodeOptions{Lazy: false, DecodeStreamsAsDatagrams: true})
+			}
+			fmt.Println(decodedPacket)
 		}
+
 	}
 }

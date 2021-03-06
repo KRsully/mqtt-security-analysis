@@ -16,8 +16,7 @@ import (
 )
 
 var msgHandler paho.MessageHandler = func(client paho.Client, msg paho.Message) {
-	fmt.Printf("TOPIC: %s\n", msg.Topic())
-	fmt.Printf("MSG: %s\n", msg.Payload())
+	fmt.Printf("[%s]: %s\n", msg.Topic(), msg.Payload())
 }
 
 func makePaho3(keepAliveTime time.Duration, pingTimeout time.Duration, brokerAddress string, port string) paho.Client {
@@ -34,12 +33,11 @@ func makePaho3(keepAliveTime time.Duration, pingTimeout time.Duration, brokerAdd
 func Paho3BasicPubSubTest(brokerAddress string, port string) {
 	//paho.DEBUG = log.New(os.Stdout, "", 0)
 	//paho.ERROR = log.New(os.Stdout, "", 0)
-	opts := paho.NewClientOptions().AddBroker("mqtt://" + brokerAddress + ":" + port).SetClientID("paho3BasicTest")
+	opts := paho.NewClientOptions().AddBroker("mqtt://" + brokerAddress + ":" + port).SetClientID("paho3BasicTestCID")
 	opts.SetKeepAlive(2 * time.Second)
 	opts.SetDefaultPublishHandler(msgHandler)
 	opts.SetPingTimeout(1 * time.Second)
-
-	opts.SetUsername("paho3BasicTest")
+	opts.SetUsername("paho3BasicTestUser")
 
 	c := paho.NewClient(opts)
 
@@ -47,27 +45,25 @@ func Paho3BasicPubSubTest(brokerAddress string, port string) {
 		panic(token.Error())
 	}
 
-	if token := c.Subscribe("paho3BasicTest", 0, nil); token.Wait() && token.Error() != nil {
+	if token := c.Subscribe("paho3BasicTestTopic", 0, nil); token.Wait() && token.Error() != nil {
 		fmt.Println(token.Error())
 		os.Exit(1)
 	}
 
 	for i := 0; i < 5; i++ {
 		text := fmt.Sprintf("This is msg #%d!", i)
-		token := c.Publish("paho3BasicTest", 0, false, text)
+		token := c.Publish("paho3BasicTestTopic", 0, false, text)
 		token.Wait()
 	}
 
-	time.Sleep(6 * time.Second)
+	time.Sleep(2 * time.Second)
 
-	if token := c.Unsubscribe("paho3BasicTest"); token.Wait() && token.Error() != nil {
+	if token := c.Unsubscribe("paho3BasicTestTopic"); token.Wait() && token.Error() != nil {
 		fmt.Println(token.Error())
 		os.Exit(1)
 	}
 
 	c.Disconnect(250)
-
-	time.Sleep(1 * time.Second)
 }
 
 func Paho3BasicCertTest(brokerAddress string, port string, certFilePath string) {
@@ -112,7 +108,7 @@ func Paho3BasicCertTest(brokerAddress string, port string, certFilePath string) 
 		token.Wait()
 	}
 
-	time.Sleep(6 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	if token := c.Unsubscribe("paho3BasicCertTest"); token.Wait() && token.Error() != nil {
 		fmt.Println(token.Error())
@@ -120,6 +116,4 @@ func Paho3BasicCertTest(brokerAddress string, port string, certFilePath string) 
 	}
 
 	c.Disconnect(250)
-
-	time.Sleep(1 * time.Second)
 }
