@@ -75,13 +75,16 @@ func Paho3BasicCertTest(brokerAddress string, port string, certFilePath string) 
 	opts.SetPingTimeout(1 * time.Second)
 
 	certFile, err := ioutil.ReadFile(certFilePath)
+	if err != nil {
+		log.Printf("Error reading file %s: %s", certFile, err.Error())
+	}
 	certPool := x509.NewCertPool()
 	if err != nil {
 		certPool.AppendCertsFromPEM(certFile)
 	}
 
 	// var cert tls.Certificate
-	// cert.Leaf, err = x509.ParseCertificate(pemCerts)
+	// cert.Leaf, err = x509.ParseCertificate(certFile)
 
 	opts.SetTLSConfig(&tls.Config{
 		RootCAs:            certPool,
