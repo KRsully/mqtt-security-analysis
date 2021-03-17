@@ -108,6 +108,7 @@ func MQTTPackets(ports string, promiscuity bool, snaplen int, timeout time.Durat
 		filter += fmt.Sprintf(" %s or", port)
 	}
 	filter += fmt.Sprintf(" %s", portsSlice[len(portsSlice)-1])
+	log.Printf("Begin capturing packets on port(s): %s", filter)
 	pcapHandle.SetBPFFilter(filter)
 
 	packetSource := gopacket.NewPacketSource(pcapHandle, pcapHandle.LinkType())
