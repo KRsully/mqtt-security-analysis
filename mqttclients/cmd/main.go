@@ -1,5 +1,8 @@
 /*
-* Eventually this will drive our MQTT3.1.1 and MQTT5.0 clients, but for now is just a copy of https://github.com/eclipse/paho.mqtt.golang/blob/master/cmd/simple/main.go
+* A little CLI to send sets of packets to a designated interface
+* Right now the two tests run depending on the flags provided, but the idea is to have a bunch of tests
+*	that can be chosen from or loaded from a file or something of the like.
+* Will we get that far?
  */
 
 package main

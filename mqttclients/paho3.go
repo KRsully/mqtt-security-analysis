@@ -1,5 +1,6 @@
 /*
-* Eventually this will be a Paho MQTT3.1.1 client library used for packet generation, but for now is just a copy of https://github.com/eclipse/paho.mqtt.golang/blob/master/cmd/simple/main.go
+* This will eventually have a bunch of different tests/some sort of interpreter that runs tests with the Paho 3 library
+* Modified from https://github.com/eclipse/paho.mqtt.golang/blob/master/cmd/simple/main.go
  */
 package mqttclients
 
