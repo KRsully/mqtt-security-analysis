@@ -43,6 +43,8 @@ This report will focus on the implementation of TLS using digital certificates. 
 As the TLS handshake occurs before the start of MQTT communication, troubleshooting MQTT over TLS is challenging. When an error occurs in the TLS handshake, it is almost always deemed fatal and by TLS protocol the broker and client must end their connection\cite{tls1.2errors}. Therefore, the broker and client are not able to engage in MQTT communications, requiring that errors be relayed between broker and client through the TLS header.
 
 \section*{Experiment Setup}
+\par Data was gathered using two computers communicating over a local network. One computer hosted two brokers: one mosquitto broker, and one HiveMQ CE broker. The other computer used mosquitto\_pub and Paho clients to send messages to the brokers.\par
+OpenSSL 1.1.1f was used to generate a CA key, which was then used to generate self-signed CA certificates and to sign broker and client certificates.
 broker 1 mosquitto version 1.6.9, Ubuntu 20.04.2 LTS 64-bit\\
 broker 2 HiveMQ CE version 2020.2, Ubuntu 20.04.2 LTS 64-bit\\
 client 1 mosquitto version 2.0.8, Windows Subsystem for Linux 4.4.0-19041-Microsoft 64-bit\\
@@ -55,18 +57,19 @@ Golang's \texttt{gopacket} library provides an API for capturing and decoding pa
 To accompany the MQTT layer decoders, a CLI packet capturing utility was built in Golang. 
 \subsection*{MQTT over TLS using Certificates}
 
-\begin{tabular}{  c l c | c c}
+\begin{tabular}{  c | c  c c}
+CA Cert 			& valid & valid & valid \\
+Server Cert 		& valid & valid & valid \\
+Server Verify Cert & valid & valid & valid \\
+Client Cert		& not required; not provided & required; valid & required; expired \\
 \hline
-CA Certificate & Server Certificate & Client Certificate & Expected Result\\
-\hline
-valid & valid & valid & MQTT Communication
+Expected TLS Error Alert & none & none & certificate\_expired
 \end{tabular}
 \section*{MQTT Software Defaults}
-Mentioned in the MQTT specifications, an MQTT control packet's greatest possible size is 268, 435, 455 bytes (256 MiB less one byte). The only types of control packets that can achieve this length within the rules of the protocol are PUBLISH packets or SUBSCRIBE packets. The greatest possible payload for a MQTT 3.1.1 PUBLISH packet would be: 268, 435, 455 minus 1 byte for the packet type and flags, 4 bytes for the `Remaining Length', 2 bytes of the topic name length, and at minimum 1 byte of topic name, resulting in a payload of 256 MiB minus 9 bytes. The greatest possible payload for a MQTT 3.1.1 SUBSCRIBE packet would be: 268, 435, 455 minus 1 byte for packet type and flags, 4 bytes for the `Remaining Length', 2 bytes for the packet identifier, resulting in 256 MiB minus 8 bytes to be used to encode topic subscriptions. Each topic subscription requires 2 bytes for the topic name length, up to 65535 bytes for the topic name, and 1 byte for the desired QoS | allowing for at most 4095 maximum-size topic subscriptions. In the case of MQTT 5.0, these sizes are equal or lesser given that the variable header of each packet may contain bytes representing packet properties.\par
-Given that MQTT is meant to be a lightweight protocol that uses few network resources, we would expect that MQTT clients and brokers will be sending control packets that are much smaller than the maximum packet size. Therefore, it would be reasonable that MQTT brokers enforce a smaller default maximum packet size to ensure that malicious actors cannot cause congestion by sending many large packets to the broker. 
-\subsection*{mosquitto}
+Mentioned in the MQTT specifications, an MQTT control packet's greatest possible size is 268, 435, 455 bytes (256 MiB less one byte). The only types of control packets that can achieve this length within the rules of the protocol are PUBLISH packets or SUBSCRIBE packets. The greatest possible payload for a MQTT 3.1.1 PUBLISH packet would be: 268, 435, 455 minus 1 byte for the packet type and flags, 4 bytes for the `Remaining Length', 2 bytes of the topic name length, and at minimum 1 byte of topic name, resulting in a payload of 256 MiB minus 9 bytes.\par
+The greatest possible payload for a MQTT 3.1.1 SUBSCRIBE packet would be: 268, 435, 455 minus 1 byte for packet type and flags, 4 bytes for the `Remaining Length', 2 bytes for the packet identifier, resulting in 256 MiB minus 8 bytes to be used to encode topic subscriptions. Each topic subscription requires 2 bytes for the topic name length, up to 65535 bytes for the topic name, and 1 byte for the desired QoS | allowing for at most 4095 maximum-size topic subscriptions. In the case of MQTT 5.0, these sizes are equal or lesser given that the variable header of each packet may contain bytes representing packet properties.\par
+Given that MQTT is meant to be a lightweight protocol that uses few network resources, we would expect that MQTT clients and brokers will be sending control packets that are much smaller than the maximum packet size. Therefore, it would be reasonable that MQTT brokers enforce a default maximum packet size that is smaller than the maximum packet size to ensure that malicious actors cannot cause congestion by sending many large packets to the broker. 
 
-\subsection*{HiveMQ}
 \section*{Future Work}
 Retrieving TLS session keys from local MQTT traffic for debugging purposes?
 \section*{Appendix A}
