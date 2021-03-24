@@ -79,21 +79,21 @@ Mentioned in the MQTT specifications, an MQTT control packet's greatest possible
 The greatest possible payload for a MQTT 3.1.1 SUBSCRIBE packet would be: 268, 435, 455 minus 1 byte for packet type and flags, 4 bytes for the `Remaining Length', 2 bytes for the packet identifier, resulting in 256 MiB minus 8 bytes to be used to encode topic subscriptions. Each topic subscription requires 2 bytes for the topic name length, up to 65535 bytes for the topic name, and 1 byte for the desired QoS | allowing for at most 4095 maximum-size topic subscriptions. In the case of MQTT 5.0, these sizes are equal or lesser given that the variable header of each packet may contain bytes representing packet properties.\par
 Given that MQTT is meant to be a lightweight protocol that uses few network resources, we would expect that MQTT clients and brokers will be sending control packets that are much smaller than the maximum packet size. Therefore, it would be reasonable that MQTT brokers enforce a default maximum packet size that is smaller than the maximum packet size to ensure that malicious actors cannot cause congestion by sending many large packets to the broker. \par
 However, we see that in the case of both HiveMQ and mosquitto the default setting is that the maximum packet size is 256 MiB. Both softwares also allow for a maximum of 1000 queued messages per client. 
+
 \subsection{MQTT Message Queueing Attack}
-An attacker could easily disrupt the broker by:
+An attacker could disrupt the broker by:
 \begin{enumerate}
 	\item Creating a persistent session between any number of clients and the broker by having each client subscribe to any number of distinct topics with either QoS 1 or 2
-	\item Disconnecting the clients so that the messages sent to each topic that the clients subscribed to are queued by the broker for later delivery to the offline clients
-	\item Use a different client (or clients) to publish up to 1000 maximum-sized messages to each topic that the clients subscribed to
+	\item Disconnecting the clients so that the messages sent to the subscribed topics are queued by the broker for later delivery to the offline clients
+	\item Using a different client (or clients) to publish up to 1000 maximum-sized messages to each topic that the clients previously subscribed to
 \end{enumerate}
 Depending on the resources of the machine hosting the broker, simply keeping the queued messages could result in depleting the resources allocated to the broker's process as 1000 full-size messages requires 256,000 MiB, or approximately 268 GB of memory.\par
-In the case that the broker is able to store all of the queued messages, we can then slow down communication between the broker and its non-malicious clients by reconnecting our clients to the topic that they subscribed to. Since the default for both brokers is to never expire client sessions, we can reconnect our clients and begin to receive the queued messages at any time. mosquitto applies a default of a maximum of 20 messages to be inflight at a time with no maximum on the amount of inflight bytes, so if we have enough malicious clients we can request that mosquitto attempt to send 5120 MiB of packets to our clients. HiveMQ's documentation does not clearly state if it is possible to limit the amount of outgoing messages\cite{hivemq-bw}. Depending on the network used to relay these messages, this could take a significant amount of time. In addition, as these are QoS 1 or 2 messages the broker will keep attempting to publish the message to the subscribing clients until the clients respond with a publish acknowledgement control packet. We could have our malicious clients never respond with the publish acknowledgement, forcing the broker to continue to retry publishing forever. 
+In the case that the broker is able to store all of the queued messages, we can then slow down communication between the broker and its non-malicious clients by reconnecting our clients to the topic that they subscribed to. Since the default for both mosquitto and HiveMQ is to never expire client sessions, we can reconnect our clients and begin to receive the queued messages at any time. mosquitto applies a default of a maximum of 20 messages to be inflight at a time with no maximum on the amount of inflight bytes, so if we have enough malicious clients we can request that mosquitto attempt to send 5120 MiB of packets to our clients. HiveMQ's documentation does not clearly state if it is possible to limit the amount of outgoing messages\cite{hivemq-bw}. Given that MQTT is meant for low-bandwidth networks, this could take a significant amount of time. In addition, as these are QoS 1 or 2 messages the broker will keep attempting to publish the message to the subscribing clients until the clients acknowledge the publish with a PUBACK control packet. We could have our malicious clients never respond with the PUBACK, forcing the broker to continue to retry publishing forever. 
 \subsection{Mitigating the MQTT Message Queueing Attack Through Safe Defaults}
 
 \section{Future Work}
 Retrieving TLS session keys from local MQTT traffic for debugging purposes?
 
-\end{tabulary}
 \bibliographystyle{apalike}
 \bibliography{comp4905}
 \end{document}
