@@ -3,7 +3,18 @@
 \usepackage{url}
 \usepackage{graphicx}
 \usepackage{tabulary}
+\usepackage{caption}
+\usepackage{lscape}
+\usepackage{colortbl}
+
+%1.5 line spacing
 \renewcommand{\baselinestretch}{1.5}
+
+%In all caps, as requested...
+\captionsetup{figurename=FIGURE, tablename=TABLE}
+
+%extra space bewteen paragraphs, as requested
+\setlength{\parskip}{1em}
 
 \begin{document}
 \input{titlepage}
@@ -27,7 +38,7 @@ MQTT follows a publish-subscribe model, where MQTT clients can publish messages 
 MQTT also supports messaging with Quality of Service(QoS) - 0 for ``at most once'' delivery, 1 for ``at least once'' delivery, and 2 for ``exactly once'' delivery. This allows devices that communicate over unreliable networks to ensure that messages that they send to the broker are delivered to their target, or that messages sent to the topic that they are subscribed to reach the client.\par
 In terms of built-in security, MQTT supports username-and-password-based authentication, however MQTT communications are not encrypted. This allows for sniffing of authentication credentials much like plain HTTP, as the MQTT packets are sent through the air or over the wire in the clear. The MQTT 3.1.1 specification notes that ``As a transport protocol, MQTT is concerned only with message transmission and it is the implementer’s responsibility to provide appropriate security features.''\cite{mqtt3.1.1}, and the MQTT 5.0 specification shares the same sentiment\cite{mqtt5.0}. Both specifications provide some suggestions on considerations when implementing secure MQTT software, and both strongly recommend using TLS to provide security for communications. However, it is emphasized that the burden of security lies on the implementer. 
 \subsection{MQTT Over TLS}
-Transport Layer Security (TLS) is a protocol that is used to encrypt application-layer data, providing confidentiality for both parties engaging in communications. Most TLS implementations make use of digital certificates, data that is used to authenticate the parties trying to communicate and to generate secrets required for encryption and decryption. MQTT packets sent over a TCP/IP connection can be encrypted using TLS. This adds an additional step to the MQTT connection process, as shown in Figure \ref{fig:connection}.\par
+Transport Layer Security (TLS) is a protocol that is used to encrypt application-layer data, providing confidentiality for both parties engaging in communications. Most TLS implementations make use of digital certificates, data that is used to authenticate the parties trying to communicate and to generate secrets required for encryption and decryption. MQTT packets sent over a TCP/IP connection can be encrypted using TLS. This adds an additional step to the MQTT connection process, as shown in Fig. \ref{fig:connection}.\par
 \begin{figure}[!htb]
 \centering
 	\includegraphics[scale=0.5]{tcp-tls-mqtt.png}
@@ -50,7 +61,7 @@ This report will focus on the implementation of TLS using digital certificates. 
 	\end{itemize}
 \end{enumerate}
 For the second and third systems certificate files must be supplied to the client. This creates additional overhead in the setup of the MQTT network, as for system 2 each new client must first be provided a copy of the broker certificates that it should trust, and in system 3 each client will need to: be provided a copy of the trusted broker certificates, generate a signing key, generate a certificate signing request, have their certificate signing request fulfilled by a CA trusted by the broker, and then possibly provide a copy of the certificate to the broker to be added to a trust store.\par
-As certificates are only valid for a period of time determined at the time of generation, clients and brokers will need to repeat the process when each certificate expires. This may seem like motivation to have certificates be long-lived, however long-lived certificates have been shown to be security risks. For example, the compromise of a root-level certificate authority like DigiNotar caused significant disruption as all certificates issued by DigiNotar, malicious or not, had to somehow be actively revoked, as at the time certificates were issued for \cite{diginotar}.\par
+As certificates are only valid for a period of time determined at the time of generation, clients and brokers will need to repeat the process when each certificate expires. This may seem like motivation to have certificates be long-lived, however long-lived certificates have been shown to be security risks. For example, the compromise of a root-level certificate authority like DigiNotar caused significant disruption as all certificates issued by DigiNotar, malicious or not, had to somehow be actively revoked, as at the time certificates were issued for multiple years \cite{diginotar}.\par
 Though an MQTT network of self-signed certificates is at a much smaller scale than an international certificate authority, the issues caused by a compromise of the certificate chain are similar. If a broker certificate were compromised, this could lead to a attacker-in-the-middle attack where an attacker can set up a bridge with the compromised certificate that clients trust so that all of the traffic is received by the attacker before it is forwarded to the broker. Compromise of client certificates leads to attacks against the broker. To be able to react to a compromise of a certificate or certificate authority, the MQTT network administrators would need to implement some Online Certificate Status Protocol (OSCP) solution, or provide every device in the MQTT network with a Certificate Revocation List(CRL). This further increases the resources required to use and maintain the MQTT network. 
 
 \subsubsection{TLS Error Alerts} \label{tls-errors}
@@ -88,42 +99,59 @@ unsupported\_extension   & fatal    \\
 \end{tabular}
 \end{table}
 
-\section{Experiment Setup}
-\par Data was gathered using two computers communicating over a local network. One computer hosted two brokers: one mosquitto broker, and one HiveMQ CE broker. The other computer used mosquitto\_pub and Paho clients to send messages to the brokers.\par
-OpenSSL 1.1.1f was used to generate a CA key for the mosquitto broker, which was then used to generate self-signed x509 CA certificates and to sign broker and client certificates.\\
-keytool was used to generate Java keystores, truststores, and certificates for the HiveMQ broker and clients.\\
-broker 1 mosquitto version 1.6.9, Ubuntu 20.04.2 LTS 64-bit\\
-broker 2 HiveMQ CE version 2020.2, Ubuntu 20.04.2 LTS 64-bit\\
-client 1 mosquitto version 2.0.8, Windows Subsystem for Linux 4.4.0-19041-Microsoft 64-bit\\
-
-
 \section{Tools Developed}
 \subsection{Golang MQTT Packet Decoding}
 Golang's \texttt{gopacket} library provides an API for capturing and decoding packets from a network interface. The \texttt{layers} library does not contain layers for MQTT packets, so a collection of layers was created for each control packet type, as well as the MQTT fixed header. 
 \subsection{Golang Packet Capture}
 To accompany the MQTT layer decoders, a CLI packet capturing utility was built in Golang. 
+
 \section{Troubleshooting MQTT Over TLS}
 \begin{figure}[!htb]
 \centering
 	\includegraphics[scale=0.5]{tls-handshake.png}
 	\caption{Possible Error Locations Due to Certificates in the TLS Handshake\label{fig:handshake}}
 \end{figure}
-If an error occurs in the TLS handshake due to certificates, we expect them to occur at one of the three points noted in Figure \ref{fig:handshake}:
+If an error occurs in the TLS handshake due to certificates, we expect them to occur at one of the three points noted in Fig. \ref{fig:handshake}:
 \begin{enumerate}
 	\item The client's verification of the broker's certificate has failed
 	\item The broker has requested the client's certificate, but client did not provide a certificate to the broker
 	\item The broker's verification of the client's certificate has failed
 \end{enumerate}
 Errors can be uncovered at the broker or at the client, and can be due to data originating from the broker, client, or the certificate authority. As such, the broker and the client must be providing robust troubleshooting information to each other so that the software user can determine what has caused the error, who has caused the error, and feels informed enough to correct the error.\par
-As has been previously discussed, implementing security for MQTT is already conflicting with MQTT's overall goals of lightweight, reliable communication. Implementing TLS already requires additional network resources to do the TLS handshake and verify certificates, additional device resources to store certificates and keys, and additional oversight to monitor the status of the certificates. If troubleshooting MQTT over TLS is difficult, it is more likely that it will be implemented incorrectly, or this could further convince the MQTT network implementer that the cost of implementation is greater than the risk of a poorly-secured network.
+As has been previously discussed, implementing security for MQTT is already conflicting with MQTT's overall goals of lightweight, reliable communication. Implementing TLS already requires additional network resources to do the TLS handshake and verify certificates, additional device resources to store certificates and keys, and additional oversight to monitor the status of the certificates. If troubleshooting MQTT over TLS is difficult, it is more likely that it will be implemented incorrectly, or this could further convince the MQTT network implementer that the cost of implementing TLS is greater than the risk of a poorly-secured network.
+\subsection{MQTT Software Error Messages}
+To determine the effectiveness of the error messages generated by MQTT software, data was gathered using two computers communicating over a local network. One computer hosted two brokers: one mosquitto broker, and one HiveMQ CE broker. The other computer used mosquitto\_pub and Paho clients to send messages to the brokers. Certificates were generated for the mosquitto and HiveMQ brokers using the tools recommended by the developing organizations | OpenSSL for the mosquitto broker, and keytool for HiveMQ. OpenSSL 1.1.1f was used to generate a CA key for the mosquitto broker, which was then used to generate self-signed x509 CA certificates, and to sign broker and client certificate-signing requests that were also generated using OpenSSL. keytool was used to generate Java keystores, truststores, and certificates for the HiveMQ broker, and clients generated their own certificates using OpenSSL that were added to the truststore using keytool.\par
+The mosquitto broker was using mosquitto version 1.6.9, and the HiveMQ broker was using HiveMQ CE version 2020.2. Both brokers were hosted on a laptop running Ubuntu 20.04.2 LTS 64-bit. The clients were generated using mosquitto\_pub and mosquitto\_sub version 2.0.8, and paho.mqtt.golang v1.3.2, running through Windows Subsystem for Linux 4.4.0-19041-Microsoft 64-bit.\par
+
+\begin{table}
+\centering
+\caption{Expected TLS Error Alerts for Various Certificate Configurations}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{llll|l}
+CA Certificate                          & Server Certificate & \multicolumn{1}{c}{\begin{tabular}[c]{@{}c@{}}Server\\Verification \\Certificate\end{tabular}} & Client Certificate                                                                                       & \multicolumn{1}{c}{\begin{tabular}[c]{@{}c@{}}Expected TLS \\Error Alert\end{tabular}}  \\ 
+\hline
+\rowcolor[rgb]{0.753,0.753,0.753} valid & valid              & not required                                                                                   & not required                                                                                             & none                                                                                    \\
+valid                                   & expired            & valid                                                                                          & not required                                                                                             & certificate\_expired                                                                    \\
+\rowcolor[rgb]{0.753,0.753,0.753} valid & unrecognized CA    & valid                                                                                          & not required                                                                                             & unknown\_ca                                                                             \\
+valid                                   & valid              & \begin{tabular}[c]{@{}l@{}}valid: can't\\resolve CN\end{tabular}                               & not required                                                                                             & certificate\_unknown                                                                    \\
+\rowcolor[rgb]{0.753,0.753,0.753} valid & valid              & valid                                                                                          & required; none                                                                                           & handshake\_failure                                                                      \\
+valid                                   & valid              & valid                                                                                          & required; expired                                                                                        & certificate\_expired                                                                    \\
+\rowcolor[rgb]{0.753,0.753,0.753} valid & valid              & valid                                                                                          & \begin{tabular}[c]{@{}>{\cellcolor[rgb]{0.753,0.753,0.753}}l@{}}required; \\unrecognized CA\end{tabular} & unknown\_ca                                                                             \\
+                                        &                    &                                                                                                &                                                                                                          &                                                                                        
+\end{tabular}
+}
+\end{table}
+
 \subsection{Relaying Error Messages Through an Unencrypted Listener}
 One option to relay additional information to the client in the case that the TLS handshake in unsuccessful is for the broker to publish error messages and troubleshooting information to some unencrypted listener. As defined in the MQTT specifications, MQTT topics that begin with the character ``\$'' are used by the broker to publish information on the broker's state, such as the broker's uptime, system time, and the broker version, though the exact topics that each broker implementation should conform to is still in discussion \cite{mqtt-sys}. The MQTT specification also requires that clients be unable to use ``\$'' topics for their own purposes, i.e. clients may not publish to these topics. As such, a ``\$'' topic, for example \texttt{\$tls-errors}, could be a good candidate for the broker to publish TLS troubleshooting information for clients. A challenge presents itself in how the information can be published without compromising the security of the client. We consider some possible sub-topics as follows:
 \begin{itemize}
  \item \texttt{<client IP>}: The client's IP should uniquely identify their device, so the device can subscribe to this topic without any additional information from the broker. However, given that we do not want attackers to be able to map the MQTT network simply by subscribing to all topics beginning with ``\$'', this would force implementing a dynamic topic access control list on the broker that compares the IP of the client sending the subscribe packet against each topic. Also, if a device is connecting multiple clients to the broker it would be difficult to differentiate troubleshooting messages between clients.
 \item \texttt{<client certificate hash>}: If the MQTT broker is requesting a client certificate to authenticate the client, it could publish troubleshooting information on a subtopic of the client certificate's hash value. The client has a copy of their own certificate, so they are able to subscribe to the topic without additional information from the broker as long as both the client and the broker are using the same hashing function. With a good hash function we could expect that the hash of two different client certificates be distinct. However, this requires that a device store as many certificates as clients that they plan to connect to the broker. Of course, this solution only applies for systems where the broker requests a certificate from the client.
  \end{itemize}
-\subsection{Notify Expiration Continue Connection}
-As noted in section \ref{tls-errors}, a certificate\_expired error alert's serverity is undefined. As such, the MQTT software may make the decision that an expired certificate is not cause for ending the connection. Though it is suggested that if the connection will not be terminated the error alert should not be sent at all, for troubleshooting purposes this report will recommend sending the certificate\_expired error alert so that there is a record for the broker and the client that the certificate in question has expired. If the broker decides to allow the connection to continue, this 
+ 
+\subsection{Notify Error Continue Connection}
+As noted in section \ref{tls-errors}, the error severity for the \texttt{bad\_certificate}, \texttt{unsupported\_certificate}, \texttt{certificate\_revoked}, \texttt{certificate\_expired}, and \texttt{certificate\_unknown} errors is undefined. As such, the MQTT software may make the decision that an such a certificate is not cause for terminating the connection. Though it is suggested that if the connection will not be terminated the error alert should not be sent at all, for troubleshooting purposes this report will recommend sending the error alert so that there is a record for the broker and the client that the certificate in question has some issue.\par
+However, given that the MQTT software is not terminating the connection if certificates are expired, it would be recommended that the software be able to reject these connections if the certificate has been revoked. Without rejecting connections made using revoked certificates, 
 
 \section{Maximum MQTT Packet Size}
 Mentioned in the MQTT specifications, an MQTT control packet's greatest possible size is 268, 435, 455 bytes (256 MiB less one byte). The only types of control packets that can achieve this length within the rules of the protocol are PUBLISH packets or SUBSCRIBE packets. The greatest possible payload for a MQTT 3.1.1 PUBLISH packet would be: 268, 435, 455 minus 1 byte for the packet type and flags, 4 bytes for the `Remaining Length', 2 bytes of the topic name length, and at minimum 1 byte of topic name, resulting in a payload of 256 MiB minus 9 bytes.\par
